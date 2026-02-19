@@ -1,0 +1,33 @@
+# Deposit 05: Large Withdrawal - enhanced approval
+name: deposit_05_large_withdrawal
+seed: 50500
+start_time: "2024-01-01T09:00:00Z"
+
+events:
+  - event: CustomerEvent::Initialized
+    entity: customer_1
+    values: {email: "large@example.com", customer_type: Individual}
+
+  - event: DepositAccountEvent::Initialized
+    entity: account_1
+    after: 24h
+    values: {customer_id_ref: customer_1}
+
+  - event: DepositEvent::Initialized
+    entity: deposit_1
+    after: 1h
+    values: {deposit_account_id_ref: account_1, amount: 10000000}
+
+  - event: WithdrawalEvent::Initialized
+    entity: withdrawal_1
+    after: 7d
+    values: {deposit_account_id_ref: account_1, amount: 9000000}
+
+  - event: WithdrawalEvent::ApprovalProcessConcluded
+    entity: withdrawal_1
+    after: 48h
+    values: {approved: true}
+
+  - event: WithdrawalEvent::Confirmed
+    entity: withdrawal_1
+    after: 4h

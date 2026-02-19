@@ -1,0 +1,80 @@
+# Edge 01: Multi-Year - 24-month loan
+name: edge_01_multi_year
+seed: 60100
+start_time: "2024-01-01T09:00:00Z"
+
+events:
+  - event: CustomerEvent::Initialized
+    entity: customer_1
+    values: {email: "multi.year@example.com", customer_type: Individual}
+
+  - event: CollateralEvent::Initialized
+    entity: collateral_1
+    after: 24h
+
+  - event: CollateralEvent::UpdatedViaManualInput
+    entity: collateral_1
+    after: 1h
+    values: {collateral: 100000000}
+
+  - event: CreditFacilityEvent::Initialized
+    entity: facility_1
+    after: 24h
+    values:
+      customer_id_ref: customer_1
+      collateral_id_ref: collateral_1
+      amount: 1000000
+      collateralization_state: FullyCollateralized
+      collateral: 100000000
+      price: "50000.00"
+      terms:
+        annual_rate: "0.08"
+        duration: {Months: 24}
+        interest_due_duration_from_accrual: {Days: 30}
+        accrual_cycle_interval: EndOfMonth
+        accrual_interval: EndOfDay
+        one_time_fee_rate: "0.005"
+        liquidation_cvl: {Finite: "1.10"}
+        margin_call_cvl: {Finite: "1.25"}
+        initial_cvl: {Finite: "1.40"}
+        disbursal_policy: SingleDisbursal
+
+  - event: DisbursalEvent::Settled
+    entity: disbursal_1
+    after: 24h
+
+  - event: CreditFacilityEvent::InterestAccrualCycleStarted
+    entity: facility_1
+    after: 25d
+  - event: CreditFacilityEvent::InterestAccrualCycleConcluded
+    entity: facility_1
+    after: 1h
+
+  - event: CreditFacilityEvent::InterestAccrualCycleStarted
+    entity: facility_1
+    after: 30d
+  - event: CreditFacilityEvent::InterestAccrualCycleConcluded
+    entity: facility_1
+    after: 1h
+
+  - event: CreditFacilityEvent::InterestAccrualCycleStarted
+    entity: facility_1
+    after: 30d
+  - event: CreditFacilityEvent::InterestAccrualCycleConcluded
+    entity: facility_1
+    after: 1h
+
+  - event: CreditFacilityEvent::InterestAccrualCycleStarted
+    entity: facility_1
+    after: 300d
+  - event: CreditFacilityEvent::InterestAccrualCycleConcluded
+    entity: facility_1
+    after: 1h
+
+  - event: CreditFacilityEvent::Matured
+    entity: facility_1
+    after: 300d
+
+  - event: CreditFacilityEvent::Completed
+    entity: facility_1
+    after: 1d

@@ -1,0 +1,23 @@
+# Deposit 02: Reverted - failed/reversed
+name: deposit_02_reverted
+seed: 50200
+start_time: "2024-01-01T09:00:00Z"
+
+events:
+  - event: CustomerEvent::Initialized
+    entity: customer_1
+    values: {email: "reverter@example.com", customer_type: Individual}
+
+  - event: DepositAccountEvent::Initialized
+    entity: account_1
+    after: 24h
+    values: {customer_id_ref: customer_1}
+
+  - event: DepositEvent::Initialized
+    entity: deposit_1
+    after: 1h
+    values: {deposit_account_id_ref: account_1, amount: 500000}
+
+  - event: DepositEvent::Reverted
+    entity: deposit_1
+    after: 48h

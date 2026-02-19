@@ -1,0 +1,33 @@
+# Collateral 02: Custodian Sync - auto sync from provider
+name: collateral_02_custodian_sync
+seed: 30200
+start_time: "2024-01-01T09:00:00Z"
+
+events:
+  - event: CustomerEvent::Initialized
+    entity: customer_1
+    values: {email: "custodian@example.com", customer_type: Individual}
+
+  - event: CustodianEvent::Initialized
+    entity: custodian_1
+    after: 1h
+    values: {name: "BitGo"}
+
+  - event: CollateralEvent::Initialized
+    entity: collateral_1
+    after: 24h
+
+  - event: CollateralEvent::UpdatedViaCustodianSync
+    entity: collateral_1
+    after: 1h
+    values: {collateral: 15000000, custodian_id_ref: custodian_1}
+
+  - event: CollateralEvent::UpdatedViaCustodianSync
+    entity: collateral_1
+    after: 6h
+    values: {collateral: 20000000, custodian_id_ref: custodian_1}
+
+  - event: CollateralEvent::UpdatedViaCustodianSync
+    entity: collateral_1
+    after: 12h
+    values: {collateral: 18000000, custodian_id_ref: custodian_1}

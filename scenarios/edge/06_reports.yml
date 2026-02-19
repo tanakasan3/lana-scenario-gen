@@ -1,0 +1,32 @@
+# Edge 06: Reports - report generation
+name: edge_06_reports
+seed: 60600
+start_time: "2024-12-31T09:00:00Z"
+
+events:
+  - event: ReportEvent::Initialized
+    entity: report_1
+    values: {name: "Q4 2024 Credit Report"}
+
+  - event: ReportRunEvent::Initialized
+    entity: run_1
+    after: 1h
+    values: {report_id_ref: report_1}
+
+  - event: ReportRunEvent::StateUpdated
+    entity: run_1
+    after: 30m
+
+  - event: ReportEvent::Initialized
+    entity: report_2
+    after: 1h
+    values: {name: "Annual Risk Assessment 2024"}
+
+  - event: ReportRunEvent::Initialized
+    entity: run_2
+    after: 1h
+    values: {report_id_ref: report_2}
+
+  - event: ReportRunEvent::StateUpdated
+    entity: run_2
+    after: 2h

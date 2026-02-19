@@ -1,0 +1,30 @@
+# Customer 02: KYC Approved - full flow
+name: customer_02_kyc_approved
+seed: 40200
+start_time: "2024-01-01T09:00:00Z"
+
+events:
+  - event: ProspectEvent::Initialized
+    entity: prospect_1
+    values: {email: "kyc.prospect@example.com"}
+
+  - event: ProspectEvent::KycStarted
+    entity: prospect_1
+    after: 1h
+
+  - event: ProspectEvent::KycPending
+    entity: prospect_1
+    after: 4h
+
+  - event: ProspectEvent::KycApproved
+    entity: prospect_1
+    after: 24h
+
+  - event: ProspectEvent::ManuallyConverted
+    entity: prospect_1
+    after: 1h
+
+  - event: CustomerEvent::Initialized
+    entity: customer_1
+    after: 1m
+    values: {email: "kyc.approved@example.com", customer_type: Individual}

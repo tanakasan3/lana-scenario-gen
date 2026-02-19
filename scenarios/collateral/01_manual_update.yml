@@ -1,0 +1,28 @@
+# Collateral 01: Manual Update - operator updates
+name: collateral_01_manual_update
+seed: 30100
+start_time: "2024-01-01T09:00:00Z"
+
+events:
+  - event: CustomerEvent::Initialized
+    entity: customer_1
+    values: {email: "manual@example.com", customer_type: Individual}
+
+  - event: CollateralEvent::Initialized
+    entity: collateral_1
+    after: 24h
+
+  - event: CollateralEvent::UpdatedViaManualInput
+    entity: collateral_1
+    after: 1h
+    values: {collateral: 10000000}
+
+  - event: CollateralEvent::UpdatedViaManualInput
+    entity: collateral_1
+    after: 24h
+    values: {collateral: 25000000}
+
+  - event: CollateralEvent::UpdatedViaManualInput
+    entity: collateral_1
+    after: 48h
+    values: {collateral: 20000000}

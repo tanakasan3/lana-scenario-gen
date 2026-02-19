@@ -1,0 +1,14 @@
+# Customer 05: Business - company customer
+name: customer_05_business
+seed: 40500
+start_time: "2024-01-01T09:00:00Z"
+
+events:
+  - event: CustomerEvent::Initialized
+    entity: customer_1
+    values: {email: "contact@acme-corp.com", customer_type: Business}
+
+  - event: CustomerEvent::EmailUpdated
+    entity: customer_1
+    after: 7d
+    values: {email: "treasury@acme-corp.com"}

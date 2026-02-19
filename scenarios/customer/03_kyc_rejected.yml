@@ -1,0 +1,26 @@
+# Customer 03: KYC Rejected - fails verification
+name: customer_03_kyc_rejected
+seed: 40300
+start_time: "2024-01-01T09:00:00Z"
+
+events:
+  - event: ProspectEvent::Initialized
+    entity: prospect_1
+    values: {email: "kyc.reject@example.com"}
+
+  - event: ProspectEvent::KycStarted
+    entity: prospect_1
+    after: 1h
+
+  - event: ProspectEvent::KycPending
+    entity: prospect_1
+    after: 4h
+
+  - event: ProspectEvent::KycDeclined
+    entity: prospect_1
+    after: 48h
+    values: {reason: "Failed identity verification"}
+
+  - event: ProspectEvent::Closed
+    entity: prospect_1
+    after: 1h

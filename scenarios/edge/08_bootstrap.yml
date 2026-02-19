@@ -1,0 +1,68 @@
+# Edge 08: Bootstrap - system initialization
+name: edge_08_bootstrap
+seed: 60800
+start_time: "2024-01-01T00:00:00Z"
+
+events:
+  - event: ChartEvent::Initialized
+    entity: chart_1
+    values: {name: "Main Chart of Accounts"}
+
+  - event: ChartEvent::BaseConfigSet
+    entity: chart_1
+    after: 1m
+
+  - event: ChartNodeEvent::Initialized
+    entity: node_assets
+    after: 1m
+    values: {name: "Assets", code: "1000"}
+
+  - event: ChartNodeEvent::Initialized
+    entity: node_liabilities
+    after: 1m
+    values: {name: "Liabilities", code: "2000"}
+
+  - event: ChartNodeEvent::ChildNodeAdded
+    entity: node_assets
+    after: 1m
+
+  - event: CustodianEvent::Initialized
+    entity: custodian_1
+    after: 1h
+    values: {name: "Primary Custodian"}
+
+  - event: CustodianEvent::ConfigUpdated
+    entity: custodian_1
+    after: 1m
+
+  - event: TermsTemplateEvent::Initialized
+    entity: terms_standard
+    after: 1h
+    values:
+      name: "Standard 6-Month Term"
+      values:
+        annual_rate: "0.10"
+        duration: {Months: 6}
+        interest_due_duration_from_accrual: {Days: 30}
+        accrual_cycle_interval: EndOfMonth
+        accrual_interval: EndOfDay
+        one_time_fee_rate: "0.01"
+        liquidation_cvl: {Finite: "1.10"}
+        margin_call_cvl: {Finite: "1.25"}
+        initial_cvl: {Finite: "1.40"}
+        disbursal_policy: SingleDisbursal
+
+  - event: RoleEvent::Initialized
+    entity: role_admin
+    after: 1h
+    values: {name: "Administrator"}
+
+  - event: RoleEvent::Initialized
+    entity: role_analyst
+    after: 1m
+    values: {name: "Credit Analyst"}
+
+  - event: UserEvent::Initialized
+    entity: user_1
+    after: 1m
+    values: {email: "admin@lana-bank.com"}

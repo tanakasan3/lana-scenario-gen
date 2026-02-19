@@ -1,0 +1,19 @@
+# Deposit 01: Success - normal deposit
+name: deposit_01_success
+seed: 50100
+start_time: "2024-01-01T09:00:00Z"
+
+events:
+  - event: CustomerEvent::Initialized
+    entity: customer_1
+    values: {email: "depositor@example.com", customer_type: Individual}
+
+  - event: DepositAccountEvent::Initialized
+    entity: account_1
+    after: 24h
+    values: {customer_id_ref: customer_1}
+
+  - event: DepositEvent::Initialized
+    entity: deposit_1
+    after: 1h
+    values: {deposit_account_id_ref: account_1, amount: 100000}

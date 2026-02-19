@@ -1,0 +1,59 @@
+# Collateral 03: Top-up - add collateral to avoid margin call
+name: collateral_03_topup
+seed: 30300
+start_time: "2024-01-01T09:00:00Z"
+
+events:
+  - event: CustomerEvent::Initialized
+    entity: customer_1
+    values: {email: "topup@example.com", customer_type: Individual}
+
+  - event: CollateralEvent::Initialized
+    entity: collateral_1
+    after: 24h
+
+  - event: CollateralEvent::UpdatedViaManualInput
+    entity: collateral_1
+    after: 1h
+    values: {collateral: 25000000}
+
+  - event: CreditFacilityEvent::Initialized
+    entity: facility_1
+    after: 24h
+    values:
+      customer_id_ref: customer_1
+      collateral_id_ref: collateral_1
+      amount: 500000
+      collateralization_state: FullyCollateralized
+      collateral: 25000000
+      price: "50000.00"
+      terms:
+        annual_rate: "0.10"
+        duration: {Months: 6}
+        interest_due_duration_from_accrual: {Days: 30}
+        accrual_cycle_interval: EndOfMonth
+        accrual_interval: EndOfDay
+        one_time_fee_rate: "0.01"
+        liquidation_cvl: {Finite: "1.10"}
+        margin_call_cvl: {Finite: "1.25"}
+        initial_cvl: {Finite: "1.40"}
+        disbursal_policy: SingleDisbursal
+
+  - event: DisbursalEvent::Settled
+    entity: disbursal_1
+    after: 24h
+
+  - event: CreditFacilityEvent::CollateralizationRatioChanged
+    entity: facility_1
+    after: 30d
+    values: {collateral: 25000000, price: "28000.00"}
+
+  - event: CollateralEvent::UpdatedViaManualInput
+    entity: collateral_1
+    after: 4h
+    values: {collateral: 45000000}
+
+  - event: CreditFacilityEvent::CollateralizationRatioChanged
+    entity: facility_1
+    after: 1h
+    values: {collateral: 45000000, price: "28000.00"}

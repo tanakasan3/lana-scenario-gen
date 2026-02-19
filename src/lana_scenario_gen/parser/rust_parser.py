@@ -8,7 +8,7 @@ from typing import Iterator
 from .schema import (
     EventSchema, EventEnum, EventVariant, EventField,
     FieldCategory, TYPE_CATEGORIES, TypeDefinition, TypeRegistry,
-    ScalarType
+    ScalarType, SerdeFormat
 )
 
 
@@ -132,17 +132,23 @@ def parse_type_definitions(content: str, source_file: str) -> Iterator[TypeDefin
         )
     
     # Parse enums (non-event enums for type resolution)
+    # Capture attributes before pub enum
     enum_pattern = re.compile(
+        r"((?:#\[[^\]]*\]\s*)*)"  # Capture all attributes
         r"pub enum (\w+)\s*\{([^}]+)\}",
         re.DOTALL
     )
     for match in enum_pattern.finditer(content):
-        name = match.group(1)
-        body = match.group(2)
+        attrs = match.group(1) or ""
+        name = match.group(2)
+        body = match.group(3)
         
         # Skip event enums (handled separately) and test enums
         if name.endswith("Event") or "Dummy" in name or "Test" in name:
             continue
+        
+        # Extract serde attributes
+        serde_format, serde_rename = parse_serde_attrs(attrs)
         
         # parse_enum_variants now returns 3-tuples: (name, struct_fields, tuple_types)
         variants = list(parse_enum_variants(body))
@@ -152,7 +158,46 @@ def parse_type_definitions(content: str, source_file: str) -> Iterator[TypeDefin
                 kind="enum",
                 source_file=source_file,
                 variants=variants,
+                serde_format=serde_format,
+                serde_rename=serde_rename,
             )
+
+
+def parse_serde_attrs(attrs: str) -> tuple[SerdeFormat, str | None]:
+    """
+    Parse serde attributes to determine serialization format.
+    
+    Returns (serde_format, serde_rename)
+    """
+    serde_format = SerdeFormat.EXTERNAL
+    serde_rename = None
+    
+    # Find #[serde(...)] attribute
+    serde_match = re.search(r'#\[serde\(([^)]+)\)\]', attrs)
+    if not serde_match:
+        return serde_format, serde_rename
+    
+    serde_content = serde_match.group(1)
+    
+    # Check for tag and content
+    has_tag = 'tag' in serde_content and 'tag' not in serde_content.replace('tag', '', 1).replace('"', '')  # crude check
+    has_tag = re.search(r'\btag\s*=', serde_content) is not None
+    has_content = re.search(r'\bcontent\s*=', serde_content) is not None
+    has_untagged = 'untagged' in serde_content
+    
+    if has_untagged:
+        serde_format = SerdeFormat.UNTAGGED
+    elif has_tag and has_content:
+        serde_format = SerdeFormat.ADJACENT
+    elif has_tag:
+        serde_format = SerdeFormat.INTERNAL
+    
+    # Extract rename_all
+    rename_match = re.search(r'rename_all\s*=\s*"([^"]+)"', serde_content)
+    if rename_match:
+        serde_rename = rename_match.group(1)
+    
+    return serde_format, serde_rename
 
 
 def parse_struct_fields(body: str) -> Iterator[tuple[str, str, bool]]:

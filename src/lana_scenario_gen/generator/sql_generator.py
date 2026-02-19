@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timedelta
 from typing import Any
 
-from ..parser.schema import EventSchema, EventEnum, EventVariant, EventField, ResolvedType, FieldCategory
+from ..parser.schema import EventSchema, EventEnum, EventVariant, EventField, ResolvedType, FieldCategory, SerdeFormat
 from .id_tracker import IdTracker
 
 
@@ -211,6 +211,60 @@ VALUES (
         # Generate new UUID
         return self.id_tracker.new_uuid()
     
+    def _format_enum_value(
+        self, 
+        resolved: ResolvedType, 
+        variant_name: str, 
+        inner_value: Any = None
+    ) -> Any:
+        """
+        Format an enum value according to its serde format.
+        
+        Serde formats:
+        - EXTERNAL (default): {"VariantName": value} or "VariantName" for unit
+        - INTERNAL (tag only): {"type": "variant_name"}
+        - ADJACENT (tag + content): {"type": "variant_name", "value": inner}
+        - UNTAGGED: just the inner value
+        """
+        # Apply rename_all if specified
+        if resolved.serde_rename == "snake_case":
+            formatted_name = self._to_snake_case(variant_name)
+        elif resolved.serde_rename == "camelCase":
+            formatted_name = self._to_camel_case(variant_name)
+        elif resolved.serde_rename == "SCREAMING_SNAKE_CASE":
+            formatted_name = self._to_snake_case(variant_name).upper()
+        else:
+            formatted_name = variant_name
+        
+        serde_format = resolved.serde_format
+        
+        if serde_format == SerdeFormat.UNTAGGED:
+            return inner_value
+        
+        elif serde_format == SerdeFormat.ADJACENT:
+            # {"type": "variant_name", "value": inner_value}
+            if inner_value is not None:
+                return {"type": formatted_name, "value": inner_value}
+            else:
+                return {"type": formatted_name}
+        
+        elif serde_format == SerdeFormat.INTERNAL:
+            # {"type": "variant_name"} - only for unit variants
+            return {"type": formatted_name}
+        
+        else:  # EXTERNAL (default)
+            # {"VariantName": value} or "VariantName" for unit
+            if inner_value is not None:
+                return {variant_name: inner_value}
+            else:
+                return variant_name
+    
+    def _to_camel_case(self, name: str) -> str:
+        """Convert PascalCase to camelCase."""
+        if not name:
+            return name
+        return name[0].lower() + name[1:]
+    
     def _convert_value(self, field: EventField, value: Any) -> Any:
         """Convert a scenario value to the appropriate format."""
         if field.resolved_type is None:
@@ -228,14 +282,21 @@ VALUES (
         elif resolved.kind == "enum":
             # Enum values should be variant name or {variant: value} for tuple variants
             if isinstance(value, dict):
+                # Check if it's already in the expected format or needs conversion
+                # Handle scenario input format like {"Months": 12}
+                for variant in (resolved.variants or []):
+                    if variant.name in value:
+                        inner = value[variant.name]
+                        return self._format_enum_value(resolved, variant.name, inner)
+                # Already formatted correctly
                 return value
             elif isinstance(value, str):
-                # Check if it's a unit variant or needs wrapping
+                # Check if it's a unit variant
                 if resolved.variants:
                     variant = next((v for v in resolved.variants if v.name == value), None)
                     if variant and variant.is_tuple:
                         raise ValueError(f"Enum variant {value} requires a value")
-                return {"type": self._to_snake_case(value)}
+                return self._format_enum_value(resolved, value)
         
         elif resolved.kind == "struct":
             if isinstance(value, dict):
@@ -267,13 +328,17 @@ VALUES (
         
         resolved = field.resolved_type
         
-        if resolved.kind == "enum" and isinstance(value, (str, int, float)):
-            # For tuple enums like Months(12), accept format: {"Months": 12}
-            if resolved.variants:
-                for variant in resolved.variants:
-                    if variant.is_tuple and variant.name == str(value):
-                        return {variant.name: value}
-            return {"type": self._to_snake_case(str(value))}
+        if resolved.kind == "enum":
+            if isinstance(value, dict):
+                # Handle scenario format like {"Months": 12} or {"Finite": "1.10"}
+                for variant in (resolved.variants or []):
+                    if variant.name in value:
+                        inner = value[variant.name]
+                        return self._format_enum_value(resolved, variant.name, inner)
+                return value
+            elif isinstance(value, str):
+                # Unit variant by name
+                return self._format_enum_value(resolved, value)
         
         elif resolved.kind == "newtype":
             return value
@@ -296,14 +361,15 @@ VALUES (
     def _default_enum(self, field: EventField) -> dict | str | None:
         """Get default enum value."""
         if field.resolved_type and field.resolved_type.kind == "enum":
-            variants = field.resolved_type.variants or []
+            resolved = field.resolved_type
+            variants = resolved.variants or []
             if variants:
                 first = variants[0]
                 if first.is_tuple and first.tuple_types:
                     # Return with default inner value
                     inner_default = self._default_for_resolved_type(first.tuple_types[0], first.name)
-                    return {first.name: inner_default}
-                return {"type": self._to_snake_case(first.name)}
+                    return self._format_enum_value(resolved, first.name, inner_default)
+                return self._format_enum_value(resolved, first.name)
         return None
     
     def _default_for_resolved_type(self, resolved: ResolvedType | None, name: str = "") -> Any:
@@ -336,8 +402,8 @@ VALUES (
             first = resolved.variants[0]
             if first.is_tuple and first.tuple_types:
                 inner = self._default_for_resolved_type(first.tuple_types[0], first.name)
-                return {first.name: inner}
-            return {"type": self._to_snake_case(first.name)}
+                return self._format_enum_value(resolved, first.name, inner)
+            return self._format_enum_value(resolved, first.name)
         
         return None
     

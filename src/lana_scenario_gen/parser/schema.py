@@ -6,6 +6,24 @@ from typing import Any
 import json
 
 
+class SerdeFormat(str, Enum):
+    """Serde serialization format for enums."""
+    
+    # Default: externally tagged - {"Variant": value} or "Variant" for unit
+    EXTERNAL = "external"
+    
+    # #[serde(tag = "type")] - internally tagged, unit variants only
+    # {"type": "variant_name"}
+    INTERNAL = "internal"
+    
+    # #[serde(tag = "type", content = "value")] - adjacently tagged
+    # {"type": "variant_name", "value": inner_value}
+    ADJACENT = "adjacent"
+    
+    # #[serde(untagged)] - no tag, just the value
+    UNTAGGED = "untagged"
+
+
 class FieldCategory(str, Enum):
     """Categorize fields by their impact on scenario flow."""
     
@@ -167,6 +185,8 @@ class ResolvedType:
     
     # For enum
     variants: list["EnumVariant"] | None = None
+    serde_format: SerdeFormat = SerdeFormat.EXTERNAL  # Serde tagging format
+    serde_rename: str | None = None  # rename_all value (e.g., "snake_case")
     
     # For vec/option
     item_type: "ResolvedType | None" = None
@@ -188,6 +208,10 @@ class ResolvedType:
             result["inner_type"] = self.inner_type.to_dict()
         if self.variants:
             result["variants"] = [v.to_dict() for v in self.variants]
+        if self.serde_format != SerdeFormat.EXTERNAL:
+            result["serde_format"] = self.serde_format.value
+        if self.serde_rename:
+            result["serde_rename"] = self.serde_rename
         if self.item_type:
             result["item_type"] = self.item_type.to_dict()
         if self.key_type:
@@ -222,6 +246,10 @@ class ResolvedType:
         if "value_type" in data:
             value_type = cls.from_dict(data["value_type"])
         
+        serde_format = SerdeFormat.EXTERNAL
+        if "serde_format" in data:
+            serde_format = SerdeFormat(data["serde_format"])
+        
         return cls(
             kind=data["kind"],
             rust_type=data["rust_type"],
@@ -229,6 +257,8 @@ class ResolvedType:
             fields=fields,
             inner_type=inner_type,
             variants=variants,
+            serde_format=serde_format,
+            serde_rename=data.get("serde_rename"),
             item_type=item_type,
             key_type=key_type,
             value_type=value_type,
@@ -250,9 +280,21 @@ class ResolvedType:
         return cls(kind="newtype", rust_type=rust_type, inner_type=inner)
     
     @classmethod
-    def enum_type(cls, rust_type: str, variants: list["EnumVariant"]) -> "ResolvedType":
+    def enum_type(
+        cls, 
+        rust_type: str, 
+        variants: list["EnumVariant"],
+        serde_format: SerdeFormat = SerdeFormat.EXTERNAL,
+        serde_rename: str | None = None,
+    ) -> "ResolvedType":
         """Create an enum type."""
-        return cls(kind="enum", rust_type=rust_type, variants=variants)
+        return cls(
+            kind="enum", 
+            rust_type=rust_type, 
+            variants=variants,
+            serde_format=serde_format,
+            serde_rename=serde_rename,
+        )
     
     @classmethod
     def vec(cls, rust_type: str, item: "ResolvedType") -> "ResolvedType":
@@ -361,8 +403,12 @@ class TypeDefinition:
     # tuple_types: list of types for tuple variants or None
     variants: list[tuple[str, list[tuple[str, str]] | None, list[str] | None]] | None = None
     
+    # Serde serialization info (for enums)
+    serde_format: SerdeFormat = SerdeFormat.EXTERNAL
+    serde_rename: str | None = None  # e.g., "snake_case"
+    
     def to_dict(self) -> dict:
-        return {
+        result = {
             "name": self.name,
             "kind": self.kind,
             "source_file": self.source_file,
@@ -370,6 +416,11 @@ class TypeDefinition:
             "inner_type": self.inner_type,
             "variants": self.variants,
         }
+        if self.serde_format != SerdeFormat.EXTERNAL:
+            result["serde_format"] = self.serde_format.value
+        if self.serde_rename:
+            result["serde_rename"] = self.serde_rename
+        return result
 
 
 @dataclass
@@ -620,7 +671,12 @@ class TypeRegistry:
                 else:
                     # Unit variant
                     resolved_variants.append(EnumVariant(name=vname))
-            result = ResolvedType.enum_type(base_type, resolved_variants)
+            result = ResolvedType.enum_type(
+                base_type, 
+                resolved_variants,
+                serde_format=typedef.serde_format,
+                serde_rename=typedef.serde_rename,
+            )
         
         else:
             # Fallback to scalar

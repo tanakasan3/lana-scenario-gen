@@ -1,7 +1,7 @@
 # Deposit 03: Withdrawal Success - normal withdrawal
 name: deposit_03_withdrawal_success
 seed: 50300
-start_time: "2023-04-01T09:00:00Z"
+start_time: "2019-04-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

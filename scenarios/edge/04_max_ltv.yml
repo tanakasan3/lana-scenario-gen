@@ -1,7 +1,7 @@
 # Edge 04: Max LTV - loan at collateral limit
 name: edge_04_max_ltv
 seed: 60400
-start_time: "2024-10-01T09:00:00Z"
+start_time: "2020-04-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

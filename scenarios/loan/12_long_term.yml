@@ -1,7 +1,7 @@
 # Loan 12: Long Term - 12+ month loan with multiple cycles
 name: loan_12_long_term
 seed: 11200
-start_time: "2028-10-01T09:00:00Z"
+start_time: "2022-12-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

@@ -1,7 +1,7 @@
 # Deposit 02: Reverted - failed/reversed
 name: deposit_02_reverted
 seed: 50200
-start_time: "2023-01-01T09:00:00Z"
+start_time: "2019-02-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

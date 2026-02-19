@@ -1,7 +1,7 @@
 # Loan 03: Disbursal Denied - approved but disbursal blocked
 name: loan_03_disbursal_denied
 seed: 10300
-start_time: "2026-07-01T09:00:00Z"
+start_time: "2021-06-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

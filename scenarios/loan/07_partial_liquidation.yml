@@ -1,7 +1,7 @@
 # Loan 07: Partial Liquidation - partial collateral sold, loan continues
 name: loan_07_partial_liquidation
 seed: 10700
-start_time: "2027-07-01T09:00:00Z"
+start_time: "2022-02-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

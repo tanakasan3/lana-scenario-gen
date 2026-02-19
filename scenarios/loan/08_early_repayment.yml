@@ -1,7 +1,7 @@
 # Loan 08: Early Repayment - pay off before maturity
 name: loan_08_early_repayment
 seed: 10800
-start_time: "2027-10-01T09:00:00Z"
+start_time: "2022-04-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

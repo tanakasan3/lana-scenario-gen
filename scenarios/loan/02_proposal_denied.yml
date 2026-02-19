@@ -1,7 +1,7 @@
 # Loan 02: Proposal Denied - committee rejects
 name: loan_02_proposal_denied
 seed: 10200
-start_time: "2026-04-01T09:00:00Z"
+start_time: "2021-04-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

@@ -1,7 +1,7 @@
 # Payment 06: Multi Allocation - one payment, multiple obligations
 name: payment_06_multi_allocation
 seed: 20600
-start_time: "2030-04-01T09:00:00Z"
+start_time: "2023-12-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

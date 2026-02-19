@@ -1,7 +1,7 @@
 # Collateral 03: Top-up - add collateral to avoid margin call
 name: collateral_03_topup
 seed: 30300
-start_time: "2020-07-01T09:00:00Z"
+start_time: "2017-06-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

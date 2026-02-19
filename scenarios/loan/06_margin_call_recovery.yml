@@ -1,7 +1,7 @@
 # Loan 06: Margin Call Recovery - price drop → add collateral → recovery
 name: loan_06_margin_call_recovery
 seed: 10600
-start_time: "2027-04-01T09:00:00Z"
+start_time: "2021-12-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

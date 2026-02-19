@@ -1,7 +1,7 @@
 # Customer 03: KYC Rejected - fails verification
 name: customer_03_kyc_rejected
 seed: 40300
-start_time: "2022-01-01T09:00:00Z"
+start_time: "2018-06-01T09:00:00Z"
 
 events:
   - event: ProspectEvent::Initialized

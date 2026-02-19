@@ -1,7 +1,7 @@
 # Loan 01: Happy Path - approved → disbursed → paid → completed
 name: loan_01_happy_path
 seed: 10100
-start_time: "2026-01-01T09:00:00Z"
+start_time: "2021-02-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

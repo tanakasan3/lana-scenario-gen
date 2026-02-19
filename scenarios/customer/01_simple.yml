@@ -1,7 +1,7 @@
 # Customer 01: Simple - basic creation
 name: customer_01_simple
 seed: 40100
-start_time: "2021-07-01T09:00:00Z"
+start_time: "2018-02-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

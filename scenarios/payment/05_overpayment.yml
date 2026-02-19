@@ -1,7 +1,7 @@
 # Payment 05: Overpayment - pays more than owed
 name: payment_05_overpayment
 seed: 20500
-start_time: "2030-01-01T09:00:00Z"
+start_time: "2023-10-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

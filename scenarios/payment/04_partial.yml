@@ -1,7 +1,7 @@
 # Payment 04: Partial - multiple payments to complete
 name: payment_04_partial
 seed: 20400
-start_time: "2029-10-01T09:00:00Z"
+start_time: "2023-08-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

@@ -1,7 +1,7 @@
 # Edge 01: Multi-Year - 24-month loan
 name: edge_01_multi_year
 seed: 60100
-start_time: "2024-01-01T09:00:00Z"
+start_time: "2019-10-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

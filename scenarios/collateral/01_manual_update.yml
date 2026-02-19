@@ -1,7 +1,7 @@
 # Collateral 01: Manual Update - operator updates
 name: collateral_01_manual_update
 seed: 30100
-start_time: "2020-01-01T09:00:00Z"
+start_time: "2017-02-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

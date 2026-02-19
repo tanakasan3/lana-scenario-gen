@@ -1,7 +1,7 @@
 # Collateral 04: Withdrawal - release excess collateral
 name: collateral_04_withdrawal
 seed: 30400
-start_time: "2020-10-01T09:00:00Z"
+start_time: "2017-08-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

@@ -1,7 +1,7 @@
 # Collateral 06: Price Recovery - margin call cleared
 name: collateral_06_price_recovery
 seed: 30600
-start_time: "2021-04-01T09:00:00Z"
+start_time: "2017-12-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

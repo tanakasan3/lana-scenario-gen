@@ -1,7 +1,7 @@
 # Customer 05: Business - company customer
 name: customer_05_business
 seed: 40500
-start_time: "2024-01-01T09:00:00Z"
+start_time: "2022-07-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

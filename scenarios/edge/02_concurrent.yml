@@ -1,7 +1,7 @@
 # Edge 02: Concurrent Facilities - multiple loans same customer
 name: edge_02_concurrent
 seed: 60200
-start_time: "2024-01-01T09:00:00Z"
+start_time: "2024-04-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

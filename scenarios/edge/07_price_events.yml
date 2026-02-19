@@ -1,7 +1,7 @@
 # Edge 07: Price Events - collateral ratio changes from price
 name: edge_07_price_events
 seed: 60700
-start_time: "2024-01-01T09:00:00Z"
+start_time: "2025-07-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

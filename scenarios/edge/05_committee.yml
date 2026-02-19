@@ -1,7 +1,7 @@
 # Edge 05: Committee Approval - multiple approvers
 name: edge_05_committee
 seed: 60500
-start_time: "2024-01-01T09:00:00Z"
+start_time: "2025-01-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

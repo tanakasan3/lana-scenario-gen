@@ -1,7 +1,7 @@
 # Customer 04: Prospect Conversion - full flow
 name: customer_04_prospect_conversion
 seed: 40400
-start_time: "2024-01-01T09:00:00Z"
+start_time: "2022-04-01T09:00:00Z"
 
 events:
   - event: ProspectEvent::Initialized

@@ -1,7 +1,7 @@
 # Payment 01: On Time - paid before due
 name: payment_01_on_time
 seed: 20100
-start_time: "2024-01-01T09:00:00Z"
+start_time: "2029-01-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

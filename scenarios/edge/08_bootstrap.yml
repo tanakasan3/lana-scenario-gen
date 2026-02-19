@@ -1,7 +1,7 @@
 # Edge 08: Bootstrap - system initialization
 name: edge_08_bootstrap
 seed: 60800
-start_time: "2024-01-01T00:00:00Z"
+start_time: "2025-10-01T09:00:00Z"
 
 events:
   - event: ChartEvent::Initialized

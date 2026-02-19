@@ -1,7 +1,7 @@
 # Payment 02: Overdue - paid after becoming overdue
 name: payment_02_overdue
 seed: 20200
-start_time: "2024-01-01T09:00:00Z"
+start_time: "2029-04-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

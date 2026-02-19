@@ -1,7 +1,7 @@
 # Edge 03: Zero Interest - fee-only promotional
 name: edge_03_zero_interest
 seed: 60300
-start_time: "2024-01-01T09:00:00Z"
+start_time: "2024-07-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

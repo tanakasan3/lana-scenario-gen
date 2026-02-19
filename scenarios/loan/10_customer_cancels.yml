@@ -1,7 +1,7 @@
 # Loan 10: Customer Cancels - withdraws before approval
 name: loan_10_customer_cancels
 seed: 11000
-start_time: "2024-01-01T09:00:00Z"
+start_time: "2028-04-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

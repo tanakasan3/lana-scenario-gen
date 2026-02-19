@@ -1,7 +1,7 @@
 # Collateral 02: Custodian Sync - auto sync from provider
 name: collateral_02_custodian_sync
 seed: 30200
-start_time: "2024-01-01T09:00:00Z"
+start_time: "2020-04-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

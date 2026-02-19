@@ -1,7 +1,7 @@
 # Deposit 01: Success - normal deposit
 name: deposit_01_success
 seed: 50100
-start_time: "2024-01-01T09:00:00Z"
+start_time: "2022-10-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

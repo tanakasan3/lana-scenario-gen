@@ -1,7 +1,7 @@
 # Loan 11: Full Liquidation - complete collateral liquidation
 name: loan_11_full_liquidation
 seed: 11100
-start_time: "2024-01-01T09:00:00Z"
+start_time: "2028-07-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

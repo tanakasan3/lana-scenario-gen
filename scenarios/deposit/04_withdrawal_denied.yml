@@ -1,7 +1,7 @@
 # Deposit 04: Withdrawal Denied - blocked
 name: deposit_04_withdrawal_denied
 seed: 50400
-start_time: "2024-01-01T09:00:00Z"
+start_time: "2023-07-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

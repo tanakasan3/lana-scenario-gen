@@ -1,7 +1,7 @@
 # Collateral 05: Price Drop - triggers margin call
 name: collateral_05_price_drop
 seed: 30500
-start_time: "2024-01-01T09:00:00Z"
+start_time: "2021-01-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

@@ -1,7 +1,7 @@
 # Payment 03: Defaulted - never paid
 name: payment_03_defaulted
 seed: 20300
-start_time: "2024-01-01T09:00:00Z"
+start_time: "2029-07-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

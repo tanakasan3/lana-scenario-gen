@@ -1,7 +1,7 @@
 # Deposit 05: Large Withdrawal - enhanced approval
 name: deposit_05_large_withdrawal
 seed: 50500
-start_time: "2024-01-01T09:00:00Z"
+start_time: "2023-10-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

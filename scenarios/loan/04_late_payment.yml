@@ -1,7 +1,7 @@
 # Loan 04: Late Payment - overdue then paid
 name: loan_04_late_payment
 seed: 10400
-start_time: "2024-01-01T09:00:00Z"
+start_time: "2026-10-01T09:00:00Z"
 
 events:
   - event: CustomerEvent::Initialized

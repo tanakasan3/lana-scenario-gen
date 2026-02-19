@@ -1,7 +1,7 @@
 # Customer 02: KYC Approved - full flow
 name: customer_02_kyc_approved
 seed: 40200
-start_time: "2024-01-01T09:00:00Z"
+start_time: "2021-10-01T09:00:00Z"
 
 events:
   - event: ProspectEvent::Initialized

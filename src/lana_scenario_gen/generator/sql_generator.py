@@ -1,197 +1,362 @@
 """Generate SQL INSERT statements from scenario definitions."""
 
 import json
-import yaml
-from pathlib import Path
+from datetime import datetime, timedelta
 from typing import Any
-from datetime import datetime
 
-from ..parser.schema import EventSchema, EventEnum, FieldCategory
-from .id_tracker import IdTracker, resolve_value
+from ..parser.schema import EventSchema, EventEnum, EventVariant, EventField, ResolvedType, FieldCategory
+from .id_tracker import IdTracker
 
 
-def generate_sql(
-    schema: EventSchema,
-    scenario_path: str | Path,
-    output_path: str | Path,
-) -> list[str]:
+def generate_sql(schema: EventSchema, scenario: dict) -> str:
     """
     Generate SQL INSERT statements from a scenario definition.
     
     Args:
         schema: Parsed event schema
-        scenario_path: Path to scenario YAML file
-        output_path: Path to write SQL output
+        scenario: Scenario definition dict (from YAML)
         
     Returns:
-        List of SQL statements
+        SQL string with INSERT statements
     """
-    scenario_path = Path(scenario_path)
-    output_path = Path(output_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    # Load scenario
-    with open(scenario_path) as f:
-        scenario = yaml.safe_load(f)
-    
-    # Initialize tracker
-    tracker = IdTracker()
-    if "base_time" in scenario:
-        tracker.base_time = datetime.fromisoformat(scenario["base_time"])
-    
-    # Get inputs
-    inputs = scenario.get("inputs", {})
-    
-    # Pre-create customer IDs if defined
-    if "customer" in scenario:
-        customer_config = scenario["customer"]
-        tracker.get_or_create("customer", "main")
-        tracker.get_or_create("party", "main")
-        tracker.get_or_create("deposit_account", "main")
-    
-    # Process timeline
-    statements = []
-    statements.append(f"-- Generated from: {scenario_path.name}")
-    statements.append(f"-- Generated at: {datetime.utcnow().isoformat()}Z")
-    statements.append(f"-- Scenario: {scenario.get('scenario', {}).get('name', 'unnamed')}")
-    statements.append("")
-    statements.append("BEGIN;")
-    statements.append("")
-    
-    timeline = scenario.get("timeline", [])
-    for entry in timeline:
-        day = entry.get("day", 0)
-        events = entry.get("events", [])
-        
-        if events:
-            statements.append(f"-- Day {day}")
-        
-        for event_def in events:
-            sql = generate_event_insert(
-                event_def, schema, tracker, inputs, day, scenario
-            )
-            if sql:
-                statements.extend(sql)
-    
-    statements.append("")
-    statements.append("COMMIT;")
-    
-    # Write output
-    sql_text = "\n".join(statements)
-    output_path.write_text(sql_text)
-    
-    return statements
+    generator = SqlGenerator(schema, scenario)
+    return generator.generate()
 
 
-def generate_event_insert(
-    event_def: dict,
-    schema: EventSchema,
-    tracker: IdTracker,
-    inputs: dict,
-    day: int,
-    scenario: dict = None,
-) -> list[str]:
-    """Generate SQL INSERT for a single event."""
-    event_type = event_def.get("type", "")
-    params = event_def.get("params", {})
+class SqlGenerator:
+    """Generate SQL from scenario definitions."""
     
-    # Parse event type (e.g., "CustomerEvent::Initialized")
-    if "::" not in event_type:
-        return [f"-- ERROR: Invalid event type format: {event_type}"]
-    
-    enum_name, variant_name = event_type.split("::")
-    
-    # Find event enum in schema
-    if enum_name not in schema.events:
-        return [f"-- WARNING: Unknown event type: {enum_name}"]
-    
-    event_enum = schema.events[enum_name]
-    
-    # Find variant
-    variant = None
-    for v in event_enum.variants:
-        if v.name == variant_name:
-            variant = v
-            break
-    
-    if variant is None:
-        return [f"-- WARNING: Unknown variant: {variant_name} in {enum_name}"]
-    
-    # Build event data
-    event_data = {}
-    event_data["type"] = variant_name.lower()
-    
-    # Generate/resolve field values
-    for field in variant.fields:
-        value = None
+    def __init__(self, schema: EventSchema, scenario: dict):
+        self.schema = schema
+        self.scenario = scenario
+        self.id_tracker = IdTracker(seed=scenario.get("seed"))
+        self.statements: list[str] = []
         
-        # Check if provided in params
-        if field.name in params:
-            value = resolve_value(params[field.name], inputs, tracker, scenario)
+        # Base timestamp for timeline
+        self.base_time = datetime.fromisoformat(
+            scenario.get("start_time", "2024-01-01T00:00:00Z").replace("Z", "+00:00")
+        )
+        self.current_time = self.base_time
+    
+    def generate(self) -> str:
+        """Generate all SQL statements."""
+        # Header
+        self.statements.append(f"-- Generated by lana-scenario-gen")
+        self.statements.append(f"-- Scenario: {self.scenario.get('name', 'unnamed')}")
+        self.statements.append(f"-- Generated at: {datetime.utcnow().isoformat()}Z")
+        self.statements.append("")
+        self.statements.append("BEGIN;")
+        self.statements.append("")
         
-        # Auto-generate based on category
-        elif field.category == FieldCategory.IDENTITY:
-            # Generate UUID for identity fields
+        # Process each event in timeline
+        for event_def in self.scenario.get("events", []):
+            self._process_event(event_def)
+        
+        # Footer
+        self.statements.append("")
+        self.statements.append("COMMIT;")
+        
+        return "\n".join(self.statements)
+    
+    def _process_event(self, event_def: dict) -> None:
+        """Process a single event definition."""
+        event_type = event_def.get("event")
+        if not event_type:
+            raise ValueError(f"Event missing 'event' field: {event_def}")
+        
+        # Parse event type: "CreditFacilityEvent::Initialized" or just "CreditFacilityEvent.Initialized"
+        if "::" in event_type:
+            enum_name, variant_name = event_type.split("::")
+        elif "." in event_type:
+            enum_name, variant_name = event_type.split(".")
+        else:
+            raise ValueError(f"Invalid event format: {event_type}. Use 'EventEnum::Variant'")
+        
+        # Look up schema
+        if enum_name not in self.schema.events:
+            raise ValueError(f"Unknown event enum: {enum_name}")
+        
+        event_enum = self.schema.events[enum_name]
+        variant = next((v for v in event_enum.variants if v.name == variant_name), None)
+        
+        if not variant:
+            raise ValueError(f"Unknown variant {variant_name} in {enum_name}")
+        
+        # Advance timeline
+        if "after" in event_def:
+            self._advance_time(event_def["after"])
+        
+        # Generate INSERT
+        self._generate_insert(event_enum, variant, event_def)
+    
+    def _advance_time(self, duration_str: str) -> None:
+        """Advance the current time by a duration string like '1h', '30m', '1d'."""
+        value = int(duration_str[:-1])
+        unit = duration_str[-1]
+        
+        if unit == "s":
+            delta = timedelta(seconds=value)
+        elif unit == "m":
+            delta = timedelta(minutes=value)
+        elif unit == "h":
+            delta = timedelta(hours=value)
+        elif unit == "d":
+            delta = timedelta(days=value)
+        else:
+            raise ValueError(f"Unknown time unit: {unit}")
+        
+        self.current_time += delta
+    
+    def _generate_insert(self, event_enum: EventEnum, variant: EventVariant, event_def: dict) -> None:
+        """Generate an INSERT statement for an event."""
+        table_name = event_enum.table_name
+        
+        # Get or create entity ID
+        entity_ref = event_def.get("entity", event_def.get("id"))
+        if not entity_ref:
+            # Auto-generate entity reference from event type
+            entity_ref = f"{event_enum.name}_default"
+        
+        entity_type = event_enum.name.replace("Event", "").lower()
+        entity_id = self.id_tracker.get_or_create(entity_type, entity_ref)
+        sequence = self.id_tracker.next_sequence(entity_id)
+        
+        # Build event JSON
+        event_json = self._build_event_json(variant, event_def, entity_id)
+        
+        # Build context JSON (audit info)
+        context_json = {
+            "recorded_at": self.current_time.isoformat(),
+        }
+        if "user" in event_def:
+            context_json["user_id"] = event_def["user"]
+        
+        # Snake_case the variant name for event_type
+        event_type_str = self._to_snake_case(variant.name)
+        
+        # Generate SQL
+        sql = f"""INSERT INTO {table_name} (id, sequence, event_type, event, context, recorded_at)
+VALUES (
+    '{entity_id}',
+    {sequence},
+    '{event_type_str}',
+    '{json.dumps(event_json)}'::jsonb,
+    '{json.dumps(context_json)}'::jsonb,
+    '{self.current_time.isoformat()}'
+);"""
+        
+        self.statements.append(f"-- {event_enum.name}::{variant.name} for {entity_ref}")
+        self.statements.append(sql)
+        self.statements.append("")
+    
+    def _build_event_json(self, variant: EventVariant, event_def: dict, entity_id: str) -> dict:
+        """Build the event JSON payload from variant fields and scenario inputs."""
+        event_json = {"type": self._to_snake_case(variant.name)}
+        
+        # Get values from scenario
+        values = event_def.get("values", {})
+        
+        for field in variant.fields:
+            field_value = self._resolve_field_value(field, values, entity_id)
+            if field_value is not None:
+                event_json[field.name] = field_value
+        
+        return event_json
+    
+    def _resolve_field_value(self, field: EventField, values: dict, entity_id: str) -> Any:
+        """Resolve a field value from scenario inputs or generate default."""
+        # Check if explicitly provided
+        if field.name in values:
+            return self._convert_value(field, values[field.name])
+        
+        # Handle by category
+        if field.category == FieldCategory.IDENTITY:
+            # For the main ID field, use entity_id
             if field.name == "id":
-                # Main entity ID - derive from event type
-                entity_type = derive_entity_type(enum_name)
-                value = tracker.get_or_create(entity_type)
-            else:
-                # Related entity ID
-                related_type = field.name.replace("_id", "")
-                # Check if we have this entity, otherwise generate
-                value = tracker.get_or_create(related_type)
+                return entity_id
+            # For other IDs, try to resolve reference or generate
+            return self._resolve_id_field(field, values)
         
         elif field.category == FieldCategory.TEMPORAL:
-            # Generate timestamp
-            value = tracker.timestamp_str(day)
+            return self.current_time.isoformat()
         
         elif field.category == FieldCategory.AMOUNT:
-            # Default to 0 if not provided
-            value = 0
+            # Default amounts
+            return self._default_amount(field)
         
-        # Skip optional fields with no value
-        if value is None and field.optional:
-            continue
+        elif field.category == FieldCategory.FLOW_CONTROL:
+            # Default to first enum variant if available
+            return self._default_enum(field)
         
-        if value is not None:
-            event_data[field.name] = value
+        elif field.category == FieldCategory.CONFIG:
+            # Build nested config object
+            return self._build_nested_value(field, values.get(field.name, {}))
+        
+        elif field.optional:
+            return None
+        
+        else:
+            # Metadata or unknown - use placeholder
+            return self._default_value(field)
     
-    # Get entity ID for this event
-    entity_type = derive_entity_type(enum_name)
-    entity_id = event_data.get("id") or tracker.get_or_create(entity_type)
-    sequence = tracker.next_sequence(entity_id)
+    def _resolve_id_field(self, field: EventField, values: dict) -> str:
+        """Resolve an ID field - either from reference or generate new."""
+        # Check for reference in values
+        ref_key = f"{field.name}_ref"
+        if ref_key in values:
+            # Look up the referenced entity
+            entity_type = field.rust_type.replace("Id", "").lower()
+            return self.id_tracker.require(entity_type, values[ref_key])
+        
+        # Generate new UUID
+        return self.id_tracker.new_uuid()
     
-    # Build INSERT statement
-    table_name = event_enum.table_name
-    recorded_at = tracker.timestamp_str(day)
+    def _convert_value(self, field: EventField, value: Any) -> Any:
+        """Convert a scenario value to the appropriate format."""
+        if field.resolved_type is None:
+            return value
+        
+        resolved = field.resolved_type
+        
+        if resolved.kind == "scalar":
+            return value
+        
+        elif resolved.kind == "newtype":
+            # Newtypes are usually just the inner value
+            return value
+        
+        elif resolved.kind == "enum":
+            # Enum values should be variant name or {variant: value} for tuple variants
+            if isinstance(value, dict):
+                return value
+            elif isinstance(value, str):
+                # Check if it's a unit variant or needs wrapping
+                if resolved.variants:
+                    variant = next((v for v in resolved.variants if v.name == value), None)
+                    if variant and variant.is_tuple:
+                        raise ValueError(f"Enum variant {value} requires a value")
+                return {"type": self._to_snake_case(value)}
+        
+        elif resolved.kind == "struct":
+            if isinstance(value, dict):
+                return self._build_nested_value(field, value)
+        
+        return value
     
-    event_json = json.dumps(event_data)
+    def _build_nested_value(self, field: EventField, values: dict) -> dict:
+        """Build a nested struct value from scenario inputs."""
+        if field.resolved_type is None or field.resolved_type.kind != "struct":
+            return values
+        
+        result = {}
+        for sub_field in field.resolved_type.fields or []:
+            if sub_field.name in values:
+                result[sub_field.name] = self._convert_nested_value(sub_field, values[sub_field.name])
+            else:
+                # Generate default
+                default = self._default_for_resolved_type(sub_field.resolved_type, sub_field.name)
+                if default is not None:
+                    result[sub_field.name] = default
+        
+        return result
     
-    sql = f"""INSERT INTO {table_name} (id, sequence, event_type, event, recorded_at)
-VALUES ('{entity_id}', {sequence}, '{variant_name}', '{event_json}'::jsonb, '{recorded_at}');"""
+    def _convert_nested_value(self, field, value: Any) -> Any:
+        """Convert a nested field value."""
+        if field.resolved_type is None:
+            return value
+        
+        resolved = field.resolved_type
+        
+        if resolved.kind == "enum" and isinstance(value, (str, int, float)):
+            # For tuple enums like Months(12), accept format: {"Months": 12}
+            if resolved.variants:
+                for variant in resolved.variants:
+                    if variant.is_tuple and variant.name == str(value):
+                        return {variant.name: value}
+            return {"type": self._to_snake_case(str(value))}
+        
+        elif resolved.kind == "newtype":
+            return value
+        
+        return value
     
-    return [sql, ""]
-
-
-def derive_entity_type(enum_name: str) -> str:
-    """Derive entity type name from event enum name."""
-    # CreditFacilityEvent -> credit_facility
-    base = enum_name.replace("Event", "")
-    # Convert to snake_case
-    import re
-    return re.sub(r"(?<!^)(?=[A-Z])", "_", base).lower()
-
-
-def load_scenario(scenario_path: str | Path) -> dict:
-    """Load and validate a scenario file."""
-    scenario_path = Path(scenario_path)
+    def _default_amount(self, field: EventField) -> int | str:
+        """Generate a default amount value."""
+        type_name = field.rust_type.lower()
+        if "usdcents" in type_name:
+            return 100000  # $1000.00
+        elif "satoshis" in type_name:
+            return 10000000  # 0.1 BTC
+        elif "price" in type_name:
+            return "50000.00"  # $50,000 per BTC
+        elif "rate" in type_name or "pct" in type_name:
+            return "0.05"  # 5%
+        return 0
     
-    with open(scenario_path) as f:
-        scenario = yaml.safe_load(f)
+    def _default_enum(self, field: EventField) -> dict | str | None:
+        """Get default enum value."""
+        if field.resolved_type and field.resolved_type.kind == "enum":
+            variants = field.resolved_type.variants or []
+            if variants:
+                first = variants[0]
+                if first.is_tuple and first.tuple_types:
+                    # Return with default inner value
+                    inner_default = self._default_for_resolved_type(first.tuple_types[0], first.name)
+                    return {first.name: inner_default}
+                return {"type": self._to_snake_case(first.name)}
+        return None
     
-    # Basic validation
-    if "timeline" not in scenario:
-        raise ValueError("Scenario must have a 'timeline' section")
+    def _default_for_resolved_type(self, resolved: ResolvedType | None, name: str = "") -> Any:
+        """Get a default value for a resolved type."""
+        if resolved is None:
+            return None
+        
+        if resolved.kind == "scalar":
+            scalar = resolved.scalar_type or resolved.rust_type
+            if scalar in ("i32", "i64", "u32", "u64", "isize", "usize"):
+                if "month" in name.lower():
+                    return 12
+                if "day" in name.lower():
+                    return 30
+                return 0
+            elif scalar in ("f32", "f64", "Decimal"):
+                return "0.0"
+            elif scalar == "bool":
+                return False
+            elif scalar == "String":
+                return ""
+            elif "Uuid" in scalar or "Id" in scalar:
+                return self.id_tracker.new_uuid()
+            return None
+        
+        elif resolved.kind == "newtype" and resolved.inner_type:
+            return self._default_for_resolved_type(resolved.inner_type, name)
+        
+        elif resolved.kind == "enum" and resolved.variants:
+            first = resolved.variants[0]
+            if first.is_tuple and first.tuple_types:
+                inner = self._default_for_resolved_type(first.tuple_types[0], first.name)
+                return {first.name: inner}
+            return {"type": self._to_snake_case(first.name)}
+        
+        return None
     
-    return scenario
+    def _default_value(self, field: EventField) -> Any:
+        """Generate a default value for a field."""
+        if field.resolved_type:
+            return self._default_for_resolved_type(field.resolved_type, field.name)
+        
+        # Fallback based on type name
+        type_name = field.rust_type
+        if "String" in type_name:
+            return f"test_{field.name}"
+        elif "bool" in type_name.lower():
+            return False
+        
+        return None
+    
+    def _to_snake_case(self, name: str) -> str:
+        """Convert PascalCase to snake_case."""
+        import re
+        s1 = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', name)
+        return re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', s1).lower()

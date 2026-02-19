@@ -1,0 +1,314 @@
+# Happy Path Loan Scenario
+# A complete loan lifecycle: application → approval → disbursal → payments → completion
+
+scenario:
+  name: happy_path_loan
+  description: |
+    Customer applies for a loan, gets approved, receives disbursal,
+    makes interest payments each month, and completes the loan at maturity.
+
+# External inputs - customize these for your scenario
+inputs:
+  # Pricing
+  btc_price_usd: 50000
+  
+  # Customer funds
+  initial_deposit_usd: 100000
+  
+  # Loan parameters
+  loan_amount_usd: 10000
+  collateral_btc: 0.5
+  annual_rate: 0.12
+  term_months: 3
+  
+  # Payment timing
+  monthly_interest_payment_usd: 100
+
+# Customer definition
+customer:
+  name: main
+  email: test.customer@example.com
+  telegram: test_customer
+  type: individual
+
+# Base time for the scenario (optional, defaults to now)
+# base_time: "2024-01-01T00:00:00"
+
+# Timeline of events
+timeline:
+  # ========================================
+  # Day 0: Customer Onboarding
+  # ========================================
+  - day: 0
+    events:
+      - type: PartyEvent::Initialized
+        params:
+          email: $customer.email
+          telegram_handle: $customer.telegram
+          customer_type: $customer.type
+      
+      - type: CustomerEvent::Initialized
+        params:
+          customer_type: $customer.type
+          level: Verified
+          activity: Active
+      
+      - type: DepositAccountEvent::Initialized
+        params:
+          status: Active
+
+  # ========================================
+  # Day 1: Initial Deposit
+  # ========================================
+  - day: 1
+    events:
+      - type: DepositEvent::Initialized
+        params:
+          amount: $inputs.initial_deposit_usd
+          status: Completed
+
+  # ========================================
+  # Day 2: Loan Application
+  # ========================================
+  - day: 2
+    events:
+      - type: CreditFacilityProposalEvent::Initialized
+        params:
+          amount: $inputs.loan_amount_usd
+          status: PendingCustomerApproval
+      
+      - type: CreditFacilityProposalEvent::CustomerApprovalConcluded
+        params:
+          status: PendingApproval
+
+  # ========================================
+  # Day 3: Committee Approval
+  # ========================================
+  - day: 3
+    events:
+      - type: ApprovalProcessEvent::Initialized
+        params:
+          process_type: CreditFacilityProposal
+      
+      - type: ApprovalProcessEvent::Approved
+      
+      - type: ApprovalProcessEvent::Concluded
+        params:
+          approved: true
+      
+      - type: CreditFacilityProposalEvent::ApprovalProcessConcluded
+        params:
+          status: Approved
+
+  # ========================================
+  # Day 4: Pending Facility & Collateral
+  # ========================================
+  - day: 4
+    events:
+      - type: PendingCreditFacilityEvent::Initialized
+      
+      - type: CollateralEvent::Initialized
+      
+      - type: CollateralEvent::UpdatedViaManualInput
+        params:
+          collateral_amount: $inputs.collateral_btc
+          direction: Increase
+      
+      - type: PendingCreditFacilityEvent::CollateralizationStateChanged
+        params:
+          collateralization_state: FullyCollateralized
+          collateral: $inputs.collateral_btc
+          price: $inputs.btc_price_usd
+      
+      - type: PendingCreditFacilityEvent::Completed
+
+  # ========================================
+  # Day 5: Facility Activation
+  # ========================================
+  - day: 5
+    events:
+      - type: CreditFacilityEvent::Initialized
+        params:
+          amount: $inputs.loan_amount_usd
+          collateralization_state: FullyCollateralized
+
+  # ========================================
+  # Day 6: Disbursal
+  # ========================================
+  - day: 6
+    events:
+      - type: DisbursalEvent::Initialized
+        params:
+          amount: $inputs.loan_amount_usd
+      
+      - type: ApprovalProcessEvent::Initialized
+        params:
+          process_type: Disbursal
+      
+      - type: ApprovalProcessEvent::Concluded
+        params:
+          approved: true
+      
+      - type: DisbursalEvent::ApprovalProcessConcluded
+        params:
+          approved: true
+      
+      - type: DisbursalEvent::Settled
+        params:
+          amount: $inputs.loan_amount_usd
+      
+      - type: ObligationEvent::Initialized
+        params:
+          obligation_type: Principal
+          amount: $inputs.loan_amount_usd
+
+  # ========================================
+  # Day 30: First Interest Accrual Cycle
+  # ========================================
+  - day: 30
+    events:
+      - type: CreditFacilityEvent::InterestAccrualCycleStarted
+      
+      - type: InterestAccrualCycleEvent::Initialized
+      
+      - type: InterestAccrualCycleEvent::InterestAccrued
+        params:
+          amount: $inputs.monthly_interest_payment_usd
+      
+      - type: InterestAccrualCycleEvent::InterestAccrualsPosted
+        params:
+          total: $inputs.monthly_interest_payment_usd
+      
+      - type: CreditFacilityEvent::InterestAccrualCycleConcluded
+      
+      - type: ObligationEvent::Initialized
+        params:
+          obligation_type: Interest
+          amount: $inputs.monthly_interest_payment_usd
+      
+      - type: ObligationEvent::DueRecorded
+        params:
+          due_amount: $inputs.monthly_interest_payment_usd
+
+  # ========================================
+  # Day 35: First Interest Payment
+  # ========================================
+  - day: 35
+    events:
+      - type: PaymentEvent::Initialized
+        params:
+          amount: $inputs.monthly_interest_payment_usd
+      
+      - type: PaymentAllocationEvent::Initialized
+        params:
+          obligation_type: Interest
+          amount: $inputs.monthly_interest_payment_usd
+      
+      - type: ObligationEvent::PaymentAllocated
+        params:
+          payment_allocation_amount: $inputs.monthly_interest_payment_usd
+      
+      - type: ObligationEvent::Completed
+
+  # ========================================
+  # Day 60: Second Interest Cycle
+  # ========================================
+  - day: 60
+    events:
+      - type: CreditFacilityEvent::InterestAccrualCycleStarted
+      
+      - type: InterestAccrualCycleEvent::Initialized
+      
+      - type: InterestAccrualCycleEvent::InterestAccrualsPosted
+        params:
+          total: $inputs.monthly_interest_payment_usd
+      
+      - type: CreditFacilityEvent::InterestAccrualCycleConcluded
+      
+      - type: ObligationEvent::Initialized
+        params:
+          obligation_type: Interest
+          amount: $inputs.monthly_interest_payment_usd
+      
+      - type: ObligationEvent::DueRecorded
+
+  # ========================================
+  # Day 65: Second Interest Payment
+  # ========================================
+  - day: 65
+    events:
+      - type: PaymentEvent::Initialized
+        params:
+          amount: $inputs.monthly_interest_payment_usd
+      
+      - type: PaymentAllocationEvent::Initialized
+        params:
+          obligation_type: Interest
+          amount: $inputs.monthly_interest_payment_usd
+      
+      - type: ObligationEvent::PaymentAllocated
+      
+      - type: ObligationEvent::Completed
+
+  # ========================================
+  # Day 90: Final Interest + Principal Payment
+  # ========================================
+  - day: 90
+    events:
+      - type: CreditFacilityEvent::InterestAccrualCycleStarted
+      
+      - type: InterestAccrualCycleEvent::InterestAccrualsPosted
+        params:
+          total: $inputs.monthly_interest_payment_usd
+      
+      - type: CreditFacilityEvent::InterestAccrualCycleConcluded
+      
+      # Interest obligation
+      - type: ObligationEvent::Initialized
+        params:
+          obligation_type: Interest
+          amount: $inputs.monthly_interest_payment_usd
+      
+      - type: ObligationEvent::DueRecorded
+      
+      # Pay interest
+      - type: PaymentEvent::Initialized
+        params:
+          amount: $inputs.monthly_interest_payment_usd
+      
+      - type: PaymentAllocationEvent::Initialized
+        params:
+          obligation_type: Interest
+          amount: $inputs.monthly_interest_payment_usd
+      
+      - type: ObligationEvent::PaymentAllocated
+      
+      - type: ObligationEvent::Completed
+      
+      # Principal obligation becomes due
+      - type: ObligationEvent::DueRecorded
+        params:
+          due_amount: $inputs.loan_amount_usd
+      
+      # Pay principal
+      - type: PaymentEvent::Initialized
+        params:
+          amount: $inputs.loan_amount_usd
+      
+      - type: PaymentAllocationEvent::Initialized
+        params:
+          obligation_type: Principal
+          amount: $inputs.loan_amount_usd
+      
+      - type: ObligationEvent::PaymentAllocated
+      
+      - type: ObligationEvent::Completed
+
+  # ========================================
+  # Day 91: Facility Completion
+  # ========================================
+  - day: 91
+    events:
+      - type: CreditFacilityEvent::Matured
+      
+      - type: CreditFacilityEvent::Completed

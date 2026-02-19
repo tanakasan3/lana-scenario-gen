@@ -1,0 +1,193 @@
+# Loan Default Scenario
+# Customer takes a loan but fails to pay, leading to default and liquidation
+
+scenario:
+  name: loan_default
+  description: |
+    Customer applies for loan, gets approved, receives disbursal,
+    misses payments, goes overdue, then defaults, triggering liquidation.
+
+inputs:
+  btc_price_usd: 50000
+  btc_price_crash: 30000  # Price drops, triggering liquidation
+  
+  initial_deposit_usd: 100000
+  loan_amount_usd: 10000
+  collateral_btc: 0.3  # Under-collateralized after price drop
+  annual_rate: 0.12
+  
+  monthly_interest_usd: 100
+
+customer:
+  name: defaulter
+  email: defaulter@example.com
+  telegram: defaulter
+  type: individual
+
+timeline:
+  # ========================================
+  # Day 0-6: Standard onboarding + approval
+  # ========================================
+  - day: 0
+    events:
+      - type: PartyEvent::Initialized
+        params:
+          email: $customer.email
+          telegram_handle: $customer.telegram
+      
+      - type: CustomerEvent::Initialized
+        params:
+          customer_type: $customer.type
+          level: Verified
+      
+      - type: DepositAccountEvent::Initialized
+
+  - day: 1
+    events:
+      - type: DepositEvent::Initialized
+        params:
+          amount: $inputs.initial_deposit_usd
+
+  - day: 2
+    events:
+      - type: CreditFacilityProposalEvent::Initialized
+        params:
+          amount: $inputs.loan_amount_usd
+      
+      - type: CreditFacilityProposalEvent::CustomerApprovalConcluded
+        params:
+          status: PendingApproval
+
+  - day: 3
+    events:
+      - type: ApprovalProcessEvent::Initialized
+      - type: ApprovalProcessEvent::Concluded
+        params:
+          approved: true
+      - type: CreditFacilityProposalEvent::ApprovalProcessConcluded
+        params:
+          status: Approved
+
+  - day: 4
+    events:
+      - type: PendingCreditFacilityEvent::Initialized
+      - type: CollateralEvent::Initialized
+      - type: CollateralEvent::UpdatedViaManualInput
+        params:
+          collateral_amount: $inputs.collateral_btc
+      - type: PendingCreditFacilityEvent::Completed
+
+  - day: 5
+    events:
+      - type: CreditFacilityEvent::Initialized
+        params:
+          collateralization_state: FullyCollateralized
+
+  - day: 6
+    events:
+      - type: DisbursalEvent::Initialized
+        params:
+          amount: $inputs.loan_amount_usd
+      - type: DisbursalEvent::Settled
+      - type: ObligationEvent::Initialized
+        params:
+          obligation_type: Principal
+
+  # ========================================
+  # Day 30: First interest due
+  # ========================================
+  - day: 30
+    events:
+      - type: InterestAccrualCycleEvent::InterestAccrualsPosted
+        params:
+          total: $inputs.monthly_interest_usd
+      
+      - type: ObligationEvent::Initialized
+        params:
+          obligation_type: Interest
+          amount: $inputs.monthly_interest_usd
+      
+      - type: ObligationEvent::DueRecorded
+
+  # ========================================
+  # Day 80: Overdue (50 days past due)
+  # ========================================
+  - day: 80
+    events:
+      - type: ObligationEvent::OverdueRecorded
+        params:
+          overdue_amount: $inputs.monthly_interest_usd
+
+  # ========================================
+  # Day 90: Second interest compounds, still unpaid
+  # ========================================
+  - day: 90
+    events:
+      - type: InterestAccrualCycleEvent::InterestAccrualsPosted
+        params:
+          total: $inputs.monthly_interest_usd
+      
+      - type: ObligationEvent::Initialized
+        params:
+          obligation_type: Interest
+          amount: $inputs.monthly_interest_usd
+      
+      - type: ObligationEvent::DueRecorded
+
+  # ========================================
+  # Day 100: BTC price crashes, CVL breached
+  # ========================================
+  - day: 100
+    events:
+      - type: CreditFacilityEvent::CollateralizationStateChanged
+        params:
+          collateralization_state: UnderMarginCall
+          price: $inputs.btc_price_crash
+
+  # ========================================
+  # Day 110: Default triggered
+  # ========================================
+  - day: 110
+    events:
+      - type: ObligationEvent::DefaultedRecorded
+        params:
+          defaulted_amount: $inputs.monthly_interest_usd
+      
+      - type: CreditFacilityEvent::CollateralizationStateChanged
+        params:
+          collateralization_state: UnderLiquidation
+
+  # ========================================
+  # Day 111: Liquidation initiated
+  # ========================================
+  - day: 111
+    events:
+      - type: CreditFacilityEvent::PartialLiquidationInitiated
+        params:
+          trigger_price: $inputs.btc_price_crash
+      
+      - type: LiquidationEvent::Initialized
+        params:
+          trigger_price: $inputs.btc_price_crash
+          initially_estimated_to_liquidate: $inputs.collateral_btc
+      
+      - type: LiquidationEvent::CollateralSentOut
+        params:
+          amount: $inputs.collateral_btc
+      
+      - type: CreditFacilityEvent::PartialLiquidationCollateralSentOut
+        params:
+          amount: $inputs.collateral_btc
+
+  # ========================================
+  # Day 112: Liquidation proceeds received
+  # ========================================
+  - day: 112
+    events:
+      - type: LiquidationEvent::ProceedsReceivedAndLiquidationCompleted
+        params:
+          amount: 9000  # Less than loan due to price drop
+      
+      - type: CreditFacilityEvent::PartialLiquidationProceedsReceived
+      
+      - type: CreditFacilityEvent::PartialLiquidationCompleted
